@@ -1,0 +1,21 @@
+version: '3.8'
+services:
+  service_a:
+    build: ./service_a
+    networks:
+      - msnet
+    ports:
+      - "8000:8000"
+
+  service_b:
+    build: ./service_b
+    networks:
+      - msnet
+    depends_on:
+      - service_a
+    ports:
+      - "8001:8001"
+
+networks:
+  msnet:
+    driver: bridge

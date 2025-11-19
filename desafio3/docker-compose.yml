@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: web_user
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: desafio3db
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - internal_net
+
+  cache:
+    image: redis:7
+    networks:
+      - internal_net
+
+  web:
+    build: ./web
+    depends_on:
+      - db
+      - cache
+    environment:
+      - DATABASE_HOST=db
+      - DATABASE_USER=web_user
+      - DATABASE_PASSWORD=example
+      - DATABASE_NAME=desafio3db
+      - REDIS_HOST=cache
+    ports:
+      - "5000:5000"
+    networks:
+      - internal_net
+
+volumes:
+  db_data:
+
+networks:
+  internal_net:
+    driver: bridge

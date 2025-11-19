@@ -114,8 +114,3 @@ Executar todos os testes disponíveis (top-level):
 Set-Location <raiz-do-repo>
 .\test\run_all_tests.ps1
 ```
-
-Observações finais e originalidade:
-- Cada componente foi implementado de forma simples e clara para facilitar a justificativa de autoria. Nos READMEs de cada desafio incluí razões de design e passos para teste que o aluno poderá explicar.
-- Se quiser, posso adaptar as mensagens e endpoints para termos técnicos específicos ou adicionar logs mais descritivos para auxiliar a apresentação.
-

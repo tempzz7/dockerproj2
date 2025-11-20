@@ -1,32 +1,68 @@
 from flask import Flask, jsonify
 import requests
 import os
+from datetime import datetime
 
 app = Flask(__name__)
 
-SERVICE_A_URL = os.getenv('SERVICE_A_URL', 'http://service_a:8000')
+URL_SERVICO_A = os.getenv('SERVICE_A_URL', 'http://service_a:8000')
 
 @app.route('/')
-def index():
-    return jsonify({'message': 'Service B (consumer) running'})
+def inicio():
+    return jsonify({
+        'servico': 'Microsserviço B - Agregador de Informações',
+        'versao': '1.0',
+        'endpoints': ['/relatorio', '/resumo']
+    })
 
-@app.route('/combined')
-def combined():
+@app.route('/relatorio')
+def gerar_relatorio():
     try:
-        resp = requests.get(f"{SERVICE_A_URL}/users", timeout=5)
-        resp.raise_for_status()
-        users = resp.json()
-    except Exception as e:
-        return jsonify({'error': 'failed to fetch users', 'details': str(e)}), 502
+        resposta = requests.get(f"{URL_SERVICO_A}/usuarios", timeout=5)
+        resposta.raise_for_status()
+        usuarios = resposta.json()
+    except requests.exceptions.RequestException as erro:
+        return jsonify({
+            'erro': 'Falha ao buscar dados do serviço de usuários',
+            'detalhes': str(erro)
+        }), 502
 
-    # enriquecer usuários com uma frase amigável (em PT-BR)
-    enriquecidos = []
-    for u in users:
-        ativo = u.get('ativo_desde') or u.get('joined')
-        texto = f"Usuário {u.get('name')} ativo desde {ativo}"
-        enriquecidos.append({'id': u.get('id'), 'nome': u.get('name'), 'texto': texto})
+    relatorio_completo = []
+    ano_atual = datetime.now().year
 
-    return jsonify(enriquecidos)
+    for usuario in usuarios:
+        data_ativo = usuario.get('ativo_desde', '')
+        ano_cadastro = int(data_ativo.split('-')[0]) if data_ativo else ano_atual
+        tempo_ativo = ano_atual - ano_cadastro
+
+        info = {
+            'id': usuario.get('id'),
+            'nome': usuario.get('nome'),
+            'data_cadastro': data_ativo,
+            'anos_ativo': tempo_ativo,
+            'descricao': f"{usuario.get('nome')} está ativo desde {data_ativo} ({tempo_ativo} anos)"
+        }
+        relatorio_completo.append(info)
+
+    return jsonify({
+        'total_usuarios': len(relatorio_completo),
+        'usuarios': relatorio_completo
+    })
+
+@app.route('/resumo')
+def resumo_usuarios():
+    try:
+        resposta = requests.get(f"{URL_SERVICO_A}/usuarios", timeout=5)
+        resposta.raise_for_status()
+        usuarios = resposta.json()
+    except requests.exceptions.RequestException:
+        return jsonify({'erro': 'Serviço de usuários indisponível'}), 502
+
+    nomes = [u.get('nome') for u in usuarios]
+    return jsonify({
+        'quantidade': len(usuarios),
+        'nomes': nomes
+    })
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8001)

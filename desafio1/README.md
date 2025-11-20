@@ -1,64 +1,150 @@
-docker network create mynet_desafio1
-docker run -d --name desafio1-server --network mynet_desafio1 -p 8080:8080 desafio1-server
-docker run -d --name desafio1-client --network mynet_desafio1 desafio1-client
-docker logs -f desafio1-client
-docker logs -f desafio1-server
-docker rm -f desafio1-client desafio1-server; docker network rm mynet_desafio1
-
 # Desafio 1 — Containers em Rede
 
-Objetivo: Demonstrar comunicação entre dois containers conectados por uma rede Docker personalizada.
+## Descrição da Solução
 
-Visão geral e escolhas técnicas:
-- O servidor é um app Flask simples que responde em JSON com hora e IP do cliente.
-- O cliente é um container Alpine que executa um script em loop usando `curl` para consultar o servidor.
-- Usei uma rede Docker nomeada `mynet_desafio1` para demonstrar resolução de nomes entre containers.
+Este desafio demonstra a comunicação entre containers Docker usando uma rede customizada. A implementação consiste em dois componentes principais:
 
-Passo a passo (PowerShell):
+**Servidor Web (Flask)**: Um servidor HTTP simples que responde com informações em JSON, incluindo o horário da requisição e o IP do cliente que fez a chamada.
 
-1) Criar a rede:
+**Cliente (Alpine + curl)**: Um container leve que executa requisições HTTP periódicas ao servidor, simulando um consumidor de API em tempo real.
 
-```powershell
+## Arquitetura e Decisões Técnicas
+
+A arquitetura escolhida foi intenciona lmente simples para focar no conceito principal: **comunicação entre containers via rede Docker**.
+
+### Componentes:
+
+1. **Rede Docker Customizada** (`mynet_desafio1`)
+   - Permite que os containers se comuniquem usando seus nomes como hostnames
+   - Isolamento da comunicação dos outros containers do sistema
+   - Suporte nativo a resolução DNS interna do Docker
+
+2. **Servidor Flask**
+   - Linguagem: Python 3.11
+   - Framework: Flask (leve e direto ao ponto)
+   - Porta exposta: 8080
+   - Retorna JSON com timestamp e IP do cliente
+
+3. **Cliente Curl**
+   - Base: Alpine Linux (imagem minimalista)
+   - Script bash fazendo requisições em loop a cada 5 segundos
+   - Exibe logs de todas as interações
+
+### Por que essas escolhas?
+
+- **Flask**: Framework minimalista, perfeito para APIs simples
+- **Alpine**: Imagem base extremamente leve (~5MB), ideal para containers que executam tarefas simples
+- **Rede customizada**: Demonstra como o Docker facilita a comunicação entre serviços sem configuração complexa
+
+## Funcionamento
+
+O fluxo de comunicação funciona assim:
+
+1. Ambos os containers são conectados à mesma rede Docker (`mynet_desafio1`)
+2. O servidor Flask inicia e fica escutando na porta 8080
+3. O cliente faz requisições periódicas usando o hostname `desafio1-server` (nome do container do servidor)
+4. O DNS interno do Docker resolve `desafio1-server` para o IP interno do container servidor
+5. O servidor processa e responde com um JSON contendo o horário e IP do cliente
+6. O cliente exibe a resposta nos logs
+
+```
+Cliente  ────[HTTP GET]────>  Servidor Flask
+         <───[JSON response]──
+```
+
+## Instruções de Execução
+
+### Passo 1: Criar a rede Docker
+
+```bash
 docker network create mynet_desafio1
 ```
 
-2) Construir as imagens:
+### Passo 2: Construir as imagens
 
-```powershell
-Set-Location .\desafio1\server
+```bash
+cd desafio1/server
 docker build -t desafio1-server .
-Set-Location ..\client
+
+cd ../client
 docker build -t desafio1-client .
-Set-Location ..\..
+cd ..
 ```
 
-3) Executar os containers conectados à rede:
+### Passo 3: Executar os containers
 
-```powershell
-# iniciar servidor
-docker run -d --name desafio1-server --network mynet_desafio1 -p 8080:8080 desafio1-server
+```bash
+docker run -d \
+  --name desafio1-server \
+  --network mynet_desafio1 \
+  -p 8080:8080 \
+  desafio1-server
 
-# iniciar cliente (ele resolve 'server' pelo nome do container)
-docker run -d --name desafio1-client --network mynet_desafio1 desafio1-client
+docker run -d \
+  --name desafio1-client \
+  --network mynet_desafio1 \
+  desafio1-client
 ```
 
-4) Observar logs e comunicação:
+### Passo 4: Visualizar a comunicação
 
-```powershell
+Acompanhe os logs do cliente (que faz as requisições):
+
+```bash
 docker logs -f desafio1-client
-# em outra janela
+```
+
+Em outro terminal, veja os logs do servidor:
+
+```bash
 docker logs -f desafio1-server
 ```
 
-Explicação do fluxo:
-- O cliente faz requisições a cada 5 segundos e imprime a resposta JSON do servidor. Isso demonstra: criação de rede customizada, resolução de nomes (hostname `server`), e comunicação HTTP entre containers.
+Você também pode testar diretamente do seu navegador ou terminal:
 
-Limpeza rápida:
+```bash
+curl http://localhost:8080
+```
 
-```powershell
+### Passo 5: Limpeza
+
+Para remover tudo:
+
+```bash
 docker rm -f desafio1-client desafio1-server
 docker network rm mynet_desafio1
 ```
 
-Observação sobre originalidade: o exemplo é intencionalmente simples, com foco em demonstrar explicitamente como a rede docker conecta containers e como inspecionar logs para comprovar a comunicação.
+## Testando a Comunicação
 
+Ao executar os containers, você verá saídas como:
+
+**Cliente:**
+```
+[2025-11-20 15:30:01] Fazendo requisição para http://desafio1-server:8080/
+Resposta recebida: {"horario":"2025-11-20T15:30:01.234Z","ip_cliente":"172.18.0.3","mensagem":"Servidor do Desafio 1 respondendo"}
+```
+
+**Servidor:**
+```
+172.18.0.2 - - [20/Nov/2025 15:30:01] "GET / HTTP/1.1" 200 -
+```
+
+Isso comprova que:
+- O cliente consegue resolver o nome `desafio1-server`
+- A comunicação HTTP está funcionando
+- O servidor identifica o IP interno do cliente na rede Docker
+
+## Estrutura de Arquivos
+
+```
+desafio1/
+├── README.md
+├── server/
+│   ├── Dockerfile
+│   ├── app.py
+│   └── requirements.txt
+└── client/
+    ├── Dockerfile
+    └── curl-loop.sh
+```

@@ -1,15 +1,18 @@
 #!/bin/bash
-# Script simples em loop que consulta o servidor do Desafio 1
-TARGET_URL="$1"
-if [ -z "$TARGET_URL" ]; then
-  TARGET_URL="http://server:8080/"
+
+ENDERECO_SERVIDOR="$1"
+if [ -z "$ENDERECO_SERVIDOR" ]; then
+  ENDERECO_SERVIDOR="http://desafio1-server:8080/"
 fi
 
 while true; do
-  echo "[cliente] consultando $TARGET_URL em $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  if ! curl -sS "$TARGET_URL"; then
-    echo "[cliente] falha na requisição"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] Fazendo requisição para $ENDERECO_SERVIDOR"
+  RESPOSTA=$(curl -sS "$ENDERECO_SERVIDOR")
+  if [ $? -eq 0 ]; then
+    echo "Resposta recebida: $RESPOSTA"
+  else
+    echo "Erro ao conectar no servidor"
   fi
-  echo
+  echo ""
   sleep 5
 done
